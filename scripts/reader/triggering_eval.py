@@ -33,10 +33,10 @@ def eval_result(preds, origins):
     for data in origins:
         qpid = data['qid']
         id2gt[qpid] = data['label']
-        id2res[qpid] = preds[qpid]
+        id2res[qpid] = preds[qpid][0]
         qid =qpid.split('-')[0]
         qid2gt[qid].append(data['label'])
-        qid2res[qid].append(preds[qpid])
+        qid2res[qid].append(preds[qpid][0])
 
     # passage level metrics
     gts = []

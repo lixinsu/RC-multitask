@@ -18,20 +18,25 @@ def load_origin_file(data_file):
 
 def merge_answers(preds, qids, examples):
     qid2preds  = defaultdict(list)
+    qid2pconfidences  = defaultdict(list)
     for qid in qids:
-        print(qid.rsplit('-')[0])
-        qid2preds[qid.rsplit('-')[0]].append((preds[qid]))
-    return qid2preds
+        qid2preds[qid.rsplit('-')[0]].append(preds[qid][1])
+        qid2pconfidences[qid.rsplit('-')[0]].append(preds[qid][0][1])
+    return qid2preds, qid2pconfidences
 
 
-def generate_answer(qid2preds):
+def generate_answer(qid2preds, qid2pconfidences):
     qid2final = {}
     for qid, preds in qid2preds.items():
         finalpred = ''
         max_score = -10000
-        for pred in preds[:50]:
+        pconf = qid2pconfidences[qid]
+        for i,pred in enumerate(preds):
             text,score = pred[0]
-            if score > max_score:
+            score = float(score)
+            p_score = pconf[i]
+            #score = p_score * score
+            if score > max_score and p_score > 0.5:
                 max_score = score
                 finalpred = text
         qid2final[qid] = finalpred
@@ -46,6 +51,6 @@ def save_to_disk(qid2final, filename):
 if __name__ == '__main__':
     preds = load_pred_file(sys.argv[1])
     qids, examples = load_origin_file(sys.argv[2])
-    qid2preds = merge_answers(preds, qids, examples)
-    qid2final = generate_answer(qid2preds)
+    qid2preds,qid2pconfidences = merge_answers(preds, qids, examples)
+    qid2final = generate_answer(qid2preds,qid2pconfidences)
     save_to_disk(qid2final, sys.argv[3])

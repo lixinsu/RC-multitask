@@ -111,6 +111,8 @@ def find_answer(offsets, begin_offset, end_offset):
     assert(len(end) <= 1)
     if len(start) == 1 and len(end) == 1:
         return start[0], end[0]
+    else:
+        return (0,0)
 
 
 def process_dataset(data, tokenizer, workers=None):
@@ -153,10 +155,10 @@ def process_dataset(data, tokenizer, workers=None):
         ans_tokens = []
         if len(data['answers']) > 0:
             for ans in data['answers'][idx]:
-                #found = find_answer(offsets,
-                #                    ans['answer_start'],
-                #                    ans['answer_start'] + len(ans['text']))
-                found = (0, 0)
+                found = find_answer(offsets,
+                                    ans['answer_start'],
+                                    ans['answer_start'] + len(ans['text']))
+                #found = (0, 0)
                 if found:
                     ans_tokens.append(found)
         yield {

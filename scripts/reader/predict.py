@@ -38,6 +38,12 @@ parser.add_argument('--embedding-file', type=str, default=None,
 parser.add_argument('--out-dir', type=str, default='/tmp',
                     help=('Directory to write prediction file to '
                           '(<dataset>-<model>.preds)'))
+parser.add_argument('--out-file', type=str, default='tmp.preds',
+                    help=('Directory to write prediction file to '
+                          '(<dataset>-<model>.preds)'))
+parser.add_argument('--pkl-file', type=str, default='tmp.pkl',
+                    help=('Directory to write prediction file to '
+                          '(<dataset>-<model>.preds)'))
 parser.add_argument('--tokenizer', type=str, default=None,
                     help=("String option specifying tokenizer type to use "
                           "(e.g. 'corenlp')"))
@@ -94,20 +100,20 @@ with open(args.dataset) as f:
 
 if not os.path.exists(args.out_dir):
     os.makedirs(args.out_dir)
-#pickle.dump([qids, examples], open(os.path.join(args.out_dir, '%s-pred_origin.pkl' % args.task ), 'wb'))
+pickle.dump([qids, examples], open(os.path.join(args.out_dir, args.pkl_file ), 'wb'))
 results = {}
 for i in tqdm(range(0, len(examples), args.batch_size)):
-    predictions = predictor.predict_batch(
+    pred_cls, pred_spans = predictor.predict_batch(
         examples[i:i + args.batch_size], top_n=args.top_n
     )
-    for j in range(len(predictions)):
-        results[qids[i + j]] = predictions[j]
+    for j in range(len(pred_cls)):
+        results[qids[i + j]] = (pred_cls[j], pred_spans[j])
 
 
-
+# print(results)
 model = os.path.splitext(os.path.basename(args.model or 'default'))[0]
 basename = os.path.splitext(os.path.basename(args.dataset))[0]
-outfile = os.path.join(args.out_dir, basename + '-' + model + '.preds')
+outfile = os.path.join(args.out_dir, args.out_file)
 
 logger.info('Writing results to %s' % outfile)
 with open(outfile, 'w') as f:

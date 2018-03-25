@@ -246,6 +246,10 @@ def validate_unofficial(args, data_loader, model, global_stats, mode):
     from sklearn.metrics import roc_auc_score, f1_score
     eval_time = utils.Timer()
     trigger_acc = utils.AverageMeter()
+    eval_time = utils.Timer()
+    start_acc = utils.AverageMeter()
+    end_acc = utils.AverageMeter()
+    exact_match = utils.AverageMeter()
 
     # Make predictions
     all_pred = []
@@ -255,9 +259,15 @@ def validate_unofficial(args, data_loader, model, global_stats, mode):
     for ex in data_loader:
         batch_size = ex[0].size(0)
 
-        pred_score, pred_label = model.predict(ex)
+        pred_score, pred_label, pred_s, pred_e = model.predict(ex)
 
-        #target_s, target_e = ex[-3:-1]
+        target_s, target_e = ex[-4:-2]
+
+        accuracies = eval_accuracies_rc(pred_s, target_s, pred_e, target_e)
+        start_acc.update(accuracies[0], batch_size)
+        end_acc.update(accuracies[1], batch_size)
+        exact_match.update(accuracies[2], batch_size)
+
         gt_label = ex[-1]
         all_pred.extend([x[1] for x in pred_score])
         all_gt.extend(gt_label)
@@ -282,6 +292,41 @@ def validate_unofficial(args, data_loader, model, global_stats, mode):
 
     return {'auc': auc_score, 'trigger_acc': trigger_acc.avg}
 
+
+def eval_accuracies_rc(pred_s, target_s, pred_e, target_e):
+    """An unofficial evalutation helper.
+    Compute exact start/end/complete match accuracies for a batch.
+    """
+    # Convert 1D tensors to lists of lists (compatibility)
+    if torch.is_tensor(target_s):
+        target_s = [[e] for e in target_s]
+        target_e = [[e] for e in target_e]
+
+    # Compute accuracies from targets
+    batch_size = len(pred_s)
+    start = utils.AverageMeter()
+    end = utils.AverageMeter()
+    em = utils.AverageMeter()
+    for i in range(batch_size):
+        # Start matches
+        if pred_s[i] in target_s[i]:
+            start.update(1)
+        else:
+            start.update(0)
+
+        # End matches
+        if pred_e[i] in target_e[i]:
+            end.update(1)
+        else:
+            end.update(0)
+
+        # Both start and end match
+        if any([1 for _s, _e in zip(target_s[i], target_e[i])
+                if _s == pred_s[i] and _e == pred_e[i]]):
+            em.update(1)
+        else:
+            em.update(0)
+    return start.avg * 100, end.avg * 100, em.avg * 100
 
 def validate_official(args, data_loader, model, global_stats,
                       offsets, texts, answers):
@@ -491,7 +536,7 @@ def main(args):
             logger.info('save model %s' % args.model_file)
             model.save(args.model_file)
             stats['best_valid'] = result['auc']
-        #model.save(os.path.join(os.path.dirname(args.model_file), str(epoch)+os.path.basename(args.model_file)))
+        model.save(os.path.join(os.path.dirname(args.model_file), str(epoch) + '.' + os.path.basename(args.model_file)))
 
 if __name__ == '__main__':
     # Parse cmdline args and setup environment

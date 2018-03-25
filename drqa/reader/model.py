@@ -204,9 +204,9 @@ class DocReader(object):
         if self.use_cuda:
             inputs = [e if e is None else Variable(e.cuda(async=True))
                       for e in ex[:5]]
-            target_s = Variable(ex[5].cuda(async=True))
-            target_e = Variable(ex[6].cuda(async=True))
-            labels = Variable(ex[8].cuda(async=True))
+            target_s = Variable(ex[5].long().cuda(async=True))
+            target_e = Variable(ex[6].long().cuda(async=True))
+            labels = Variable(ex[8].long().cuda(async=True))
         else:
             inputs = [e if e is None else Variable(e) for e in ex[:5]]
             target_s = Variable(ex[5])
@@ -214,12 +214,19 @@ class DocReader(object):
             labels = Variable(ex[8])
 
         # Run forward
-        pred_score = self.network(*inputs)
+        pred_score, pred_s, pred_e = self.network(*inputs)
 
 
         # Compute loss and accuracies
-        loss = F.nll_loss(pred_score, labels)
-
+        #loss = F.nll_loss(pred_score, labels)
+        #print(labels)
+        #print(pred_s)
+        #print(target_s)
+        cls_loss = F.nll_loss(pred_score, labels)
+        labels = labels.float()
+        start_loss = labels*F.nll_loss(pred_s, target_s, reduce=False)
+        end_loss = labels*F.nll_loss(pred_e, target_e, reduce=False)
+        loss = cls_loss + torch.sum(start_loss) / torch.nonzero(start_loss.data).size(0) + torch.sum(end_loss) / torch.nonzero(end_loss.data).size(0)
         # Clear gradients and run backward
         self.optimizer.zero_grad()
         loss.backward()
@@ -287,14 +294,18 @@ class DocReader(object):
                       for e in ex[:5]]
 
         # Run forward
-        pred_score = self.network(*inputs)
+        pred_score, score_s, score_e = self.network(*inputs)
 
         # Decode predictions
         pred_score = torch.exp(pred_score)
         pred_score = pred_score.cpu()
         _ ,pred_label = torch.max(pred_score, 1)
+        score_s = score_s.data.cpu()
+        score_e = score_e.data.cpu()
+        args = (score_s, score_e, top_n, self.args.max_len)
+        ss,ee, conf_scores = self.decode(*args)
 
-        return pred_score.data.numpy().tolist(), pred_label.data.numpy().tolist()
+        return pred_score.data.numpy().tolist(), pred_label.data.numpy().tolist(), ss, ee, conf_scores
 
     @staticmethod
     def decode(score_s, score_e, top_n=1, max_len=None):

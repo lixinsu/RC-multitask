@@ -86,7 +86,7 @@ def load_pred_answer(filename):
     qid2answer = {}
     with open(filename) as fi:
         for line in fi:
-            data = line.strip().split('\t')
+            data = line.strip('\n').split('\t')
             qid2answer[str(data[0])] = data[1]
     return qid2answer
 
@@ -100,6 +100,8 @@ if __name__ == '__main__':
             print('qid not in predictions, error')
             continue
         #print(pred_qid2answer[qid],'===', answer)
+        if not pred_qid2answer[qid]:
+            continue
         f1.append(f1_score(pred_qid2answer[qid] ,answer))
         em.append(exact_match_score(pred_qid2answer[qid] ,answer))
     print('total %s samples' % len(f1))

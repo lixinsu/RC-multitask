@@ -29,7 +29,7 @@ def format_pqa(infile, outfile, mode='train'):
                 label = 1 if a in p_text else 0
                 if mode == 'train':
                     if len(p_text) > 0:
-                        fo.write(json.dumps({'qid': "%s-%s" % (qid, p_id), 'passage': p_text, 'query': q, 'answers':[{'text':a, 'answer_start': -1}], 'label': label}) + '\n')
+                        fo.write(json.dumps({'qid': "%s-%s" % (qid, p_id), 'passage': p_text, 'query': q, 'answers':[{'text':a, 'answer_start': p_text.find(a) if a in p_text else -1}], 'label': label}) + '\n')
                 elif mode == 'test':
                     if len(p_text) > 0:
                         fo.write(json.dumps({'qid': "%s-%s" % (qid, p_id), 'passage': p_text, 'query': q, 'answers':[{'text':a, 'answer_start': -1}], 'label': label}) + '\n')
